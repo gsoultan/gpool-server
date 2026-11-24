@@ -1,0 +1,33 @@
+[Unit]
+Description=Nextar agent (installs, tunes, backs up and upgrades on this worker)
+Documentation=https://github.com/gsoultan/nextar-server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Root, and deliberately without the sandboxing the other two units have: the
+# agent installs packages, writes database configuration, manages other systemd
+# units and runs pg_basebackup. Sandboxing it would only mean punching the same
+# holes back out. What limits it is what nextar-server is allowed to ask of it.
+User=root
+ExecStart=/usr/bin/nextar-agent --config /etc/nextar/agent.yaml
+Restart=always
+RestartSec=5s
+
+# Same reasoning as the proxy: the agent must never be the reason the database
+# runs short of memory.
+Environment=GOMEMLIMIT=56MiB
+MemoryMax=64M
+OOMScoreAdjust=500
+
+# Stopping or restarting the agent must not take down what it started. Without
+# this, systemd kills every process in the unit's control group, which would
+# include a running backup.
+KillMode=process
+
+StateDirectory=nextar-agent
+StateDirectoryMode=0700
+
+[Install]
+WantedBy=multi-user.target

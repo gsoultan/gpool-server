@@ -1,0 +1,12 @@
+# GoReleaser output
+dist/
+
+# Test and profiling artifacts
+*.test
+*.out
+*.prof
+
+# Editor and OS noise
+.idea/
+.vscode/
+.DS_Store

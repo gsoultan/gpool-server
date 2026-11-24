@@ -1,0 +1,4 @@
+# nextar-proxy configuration.
+#
+# Written and kept up to date by nextar-agent from the cluster's settings in
+# nextar-server. Edits made here by hand are replaced on the next change.

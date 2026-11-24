@@ -1,0 +1,219 @@
+# Builds the three Nextar binaries and their Linux packages from one tag.
+#
+# Check it with `goreleaser check`. Build everything locally, without publishing
+# or signing, with:
+#
+#   goreleaser release --snapshot --clean --skip=sign,sbom
+
+version: 2
+
+project_name: nextar
+
+before:
+  hooks:
+    - go mod tidy
+
+# One definition for all three, so they cannot drift apart. Static binaries
+# (CGO_ENABLED=0) are what let one package run on any distribution, whatever
+# libc it ships. -trimpath and the commit timestamp keep builds reproducible:
+# the same commit gives the same bytes on any machine.
+builds:
+  - id: server
+    main: ./cmd/nextar-server
+    binary: nextar-server
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -s -w
+      - -X github.com/gsoultan/nextar-server/internal/version.Version={{ .Version }}
+      - -X github.com/gsoultan/nextar-server/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/gsoultan/nextar-server/internal/version.Date={{ .CommitDate }}
+  - id: agent
+    main: ./cmd/nextar-agent
+    binary: nextar-agent
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -s -w
+      - -X github.com/gsoultan/nextar-server/internal/version.Version={{ .Version }}
+      - -X github.com/gsoultan/nextar-server/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/gsoultan/nextar-server/internal/version.Date={{ .CommitDate }}
+  - id: proxy
+    main: ./cmd/nextar-proxy
+    binary: nextar-proxy
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -s -w
+      - -X github.com/gsoultan/nextar-server/internal/version.Version={{ .Version }}
+      - -X github.com/gsoultan/nextar-server/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/gsoultan/nextar-server/internal/version.Date={{ .CommitDate }}
+
+archives:
+  - id: server
+    ids:
+      - server
+    name_template: "nextar-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
+  - id: agent
+    ids:
+      - agent
+    name_template: "nextar-agent_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
+  - id: proxy
+    ids:
+      - proxy
+    name_template: "nextar-proxy_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
+
+nfpms:
+  - id: server
+    package_name: nextar-server
+    ids:
+      - server
+    formats:
+      - deb
+      - rpm
+    vendor: Nextar
+    homepage: https://github.com/gsoultan/nextar-server
+    maintainer: Gembit Soultan Shirazi <gembit.soultan@gmail.com>
+    description: "Nextar server: the manager with the UI, API and state store."
+    section: database
+    bindir: /usr/bin
+    contents:
+      - src: packaging/systemd/nextar-server.service
+        dst: /usr/lib/systemd/system/nextar-server.service
+      # noreplace: an upgrade must never overwrite the operator's settings.
+      - src: packaging/config/server.yaml
+        dst: /etc/nextar/server.yaml
+        type: config|noreplace
+        file_info:
+          mode: 0640
+      # One copy per package, under its own name, so the three packages never
+      # own the same path.
+      - src: packaging/scripts/lib.sh
+        dst: /usr/lib/nextar/server-lib.sh
+    scripts:
+      postinstall: packaging/scripts/server-postinstall.sh
+      preremove: packaging/scripts/server-preremove.sh
+  - id: agent
+    package_name: nextar-agent
+    ids:
+      - agent
+    formats:
+      - deb
+      - rpm
+    vendor: Nextar
+    homepage: https://github.com/gsoultan/nextar-server
+    maintainer: Gembit Soultan Shirazi <gembit.soultan@gmail.com>
+    description: "Nextar agent: runs on every registered worker and carries out what nextar-server asks."
+    section: database
+    bindir: /usr/bin
+    contents:
+      - src: packaging/systemd/nextar-agent.service
+        dst: /usr/lib/systemd/system/nextar-agent.service
+      # noreplace: an upgrade must never overwrite the operator's settings.
+      - src: packaging/config/agent.yaml
+        dst: /etc/nextar/agent.yaml
+        type: config|noreplace
+        file_info:
+          mode: 0640
+      # One copy per package, under its own name, so the three packages never
+      # own the same path.
+      - src: packaging/scripts/lib.sh
+        dst: /usr/lib/nextar/agent-lib.sh
+    scripts:
+      postinstall: packaging/scripts/agent-postinstall.sh
+      preremove: packaging/scripts/agent-preremove.sh
+  - id: proxy
+    package_name: nextar-proxy
+    ids:
+      - proxy
+    formats:
+      - deb
+      - rpm
+    vendor: Nextar
+    homepage: https://github.com/gsoultan/nextar-server
+    maintainer: Gembit Soultan Shirazi <gembit.soultan@gmail.com>
+    description: "Nextar proxy: connection pooling, routing and failover vote in front of the database."
+    section: database
+    bindir: /usr/bin
+    contents:
+      - src: packaging/systemd/nextar-proxy.service
+        dst: /usr/lib/systemd/system/nextar-proxy.service
+      # noreplace: an upgrade must never overwrite the operator's settings.
+      - src: packaging/config/proxy.yaml
+        dst: /etc/nextar/proxy.yaml
+        type: config|noreplace
+        file_info:
+          mode: 0640
+      # One copy per package, under its own name, so the three packages never
+      # own the same path.
+      - src: packaging/scripts/lib.sh
+        dst: /usr/lib/nextar/proxy-lib.sh
+    scripts:
+      postinstall: packaging/scripts/proxy-postinstall.sh
+      preremove: packaging/scripts/proxy-preremove.sh
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+# One SBOM per archive. Needs syft on the PATH.
+sboms:
+  - artifacts: archive
+
+# Signs checksums.txt, which covers every other file. The public half of this
+# key is the one built into the binaries for self-update, so a release that is
+# not signed with it is one no installed Nextar will accept.
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sig"
+    args:
+      - sign-blob
+      - --key=env://COSIGN_PRIVATE_KEY
+      - --output-signature=${signature}
+      - --yes
+      - ${artifact}
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot+{{ .ShortCommit }}"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  draft: true
+  prerelease: auto

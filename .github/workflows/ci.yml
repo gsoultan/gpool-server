@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: '1.26.5'
+
+jobs:
+  check:
+    name: Format, vet and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt needed on:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test -race ./...
+
+  # A release config is only exercised by a release, which is the worst moment
+  # to find out it is broken. Building the packages on every pull request moves
+  # that discovery to before the tag.
+  packages:
+    name: Build packages (snapshot)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: anchore/sbom-action/download-syft@v0
+
+      - name: goreleaser check
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: check
+
+      # Signing is skipped: the key is a release secret and is not available to
+      # pull requests, least of all ones from forks.
+      - name: goreleaser snapshot
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: release --snapshot --clean --skip=sign
+
+      - name: Install and remove the packages
+        run: |
+          set -eu
+          for name in server agent proxy; do
+            sudo dpkg -i dist/nextar-${name}_*_linux_amd64.deb
+            /usr/bin/nextar-${name} version
+            systemd-analyze verify /usr/lib/systemd/system/nextar-${name}.service
+          done
+          # The service users must be able to read their own config file.
+          sudo -u nextar test -r /etc/nextar/server.yaml
+          sudo -u nextar-proxy test -r /etc/nextar/proxy.yaml
+          sudo dpkg --purge nextar-server nextar-agent nextar-proxy
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.tar.gz
+            dist/checksums.txt
+          retention-days: 7

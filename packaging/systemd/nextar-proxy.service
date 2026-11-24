@@ -1,0 +1,47 @@
+[Unit]
+Description=Nextar proxy (pooling, routing and failover vote)
+Documentation=https://github.com/gsoultan/nextar-server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nextar-proxy
+Group=nextar-proxy
+ExecStart=/usr/bin/nextar-proxy --config /etc/nextar/proxy.yaml
+Restart=always
+RestartSec=1s
+
+# The proxy shares the machine with the database, so everything it uses is taken
+# from the database. These are hard limits, not hints.
+#
+# GOMEMLIMIT sits below MemoryMax so the Go runtime collects harder before the
+# kernel has to act. If the machine still runs out, a positive OOMScoreAdjust
+# makes the kernel pick the proxy rather than the database: the proxy restarts
+# in a second, a killed database goes through crash recovery.
+Environment=GOMEMLIMIT=230MiB
+MemoryMax=256M
+CPUQuota=200%
+OOMScoreAdjust=500
+# One file descriptor per client connection and per server connection.
+LimitNOFILE=65536
+
+# The vote log is the only thing the proxy writes.
+StateDirectory=nextar-proxy
+StateDirectoryMode=0700
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

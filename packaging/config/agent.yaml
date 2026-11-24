@@ -1,0 +1,11 @@
+# nextar-agent configuration.
+#
+# This file is yours: a package upgrade never overwrites it. The Register worker
+# screen in nextar-server gives you the two values below.
+
+# Address of nextar-server. The agent connects out; nothing connects in.
+server: ""
+
+# One-time registration token, valid for one hour. The agent exchanges it for a
+# client certificate on first start and then removes it from this file.
+token: ""

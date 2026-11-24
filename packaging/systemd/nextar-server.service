@@ -1,0 +1,35 @@
+[Unit]
+Description=Nextar server (manager: UI, API and state store)
+Documentation=https://github.com/gsoultan/nextar-server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nextar
+Group=nextar
+ExecStart=/usr/bin/nextar-server --config /etc/nextar/server.yaml
+Restart=on-failure
+RestartSec=5s
+
+# systemd creates /var/lib/nextar-server owned by the service user. 0700 because
+# the folder holds the state database and, by default, the encryption key file.
+StateDirectory=nextar-server
+StateDirectoryMode=0700
+
+# The server never needs root, a home directory or a device.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target
