@@ -1,7 +1,10 @@
 [Unit]
 Description=Nextar server (manager: UI, API and state store)
 Documentation=https://github.com/gsoultan/nextar-server
-After=network-online.target
+# postgresql.service is named so that a store installed on this machine is up
+# first. After= on a unit that does not exist is ignored, so a store on another
+# machine needs nothing changed here.
+After=network-online.target postgresql.service
 Wants=network-online.target
 
 [Service]
@@ -13,7 +16,8 @@ Restart=on-failure
 RestartSec=5s
 
 # systemd creates /var/lib/nextar-server owned by the service user. 0700 because
-# the folder holds the state database and, by default, the encryption key file.
+# the folder holds, by default, the encryption key file and the settings for
+# reaching nextar-server's own PostgreSQL database.
 StateDirectory=nextar-server
 StateDirectoryMode=0700
 

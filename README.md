@@ -17,6 +17,11 @@ error, so a service manager never reports a placeholder as running.
 | `nextar-agent` | Every registered worker | Carries out what `nextar-server` asks: install, tune, back up, upgrade. |
 | `nextar-proxy` | Every worker that takes traffic | Pooling, routing and the failover vote. |
 
+`nextar-server` keeps its own data (workers, clusters, users, audit log) in
+PostgreSQL, through [storm](https://github.com/gsoultan/storm). That database
+must not be one that this `nextar-server` manages: if that cluster failed,
+`nextar-server` could not start to repair it.
+
 A *worker* is a server you register. `nextar-agent` is the program that runs on it.
 
 They are separate so each can be updated, restarted and resource-limited on its

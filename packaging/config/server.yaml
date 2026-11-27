@@ -1,11 +1,14 @@
 # nextar-server configuration.
 #
 # This file is yours: a package upgrade never overwrites it. Most settings are
-# made in /setup and in the UI and are stored in the state database; only what
-# the server needs before it can open that database belongs here.
+# made in /setup and in the UI and are stored in nextar-server's own PostgreSQL
+# database; only what the server needs before it can reach that database belongs
+# here.
 
 # Address the UI, the API and the agents connect to.
 listen: 0.0.0.0:8443
 
-# Where the state database lives. Created by systemd, mode 0700.
+# Local files: by default the encryption key file, and the connection settings
+# /setup writes for nextar-server's own PostgreSQL database. Created by systemd,
+# mode 0700. The database password is stored encrypted, never in this file.
 data_dir: /var/lib/nextar-server
